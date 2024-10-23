@@ -12,7 +12,29 @@ logger = logging.getLogger(__file__)
 
 
 def get_product_list(last_id, client_id, seller_token):
-    """Получить список товаров магазина озон"""
+     """Получить список товаров магазина Озон.
+
+    Эта функция выполняет запрос к API Озон для получения списка
+    товаров магазина, основываясь на указанном last_id. Запрос возвращает
+    товары с заданными условиями фильтрации.
+
+    Args:
+        last_id (str): Идентификатор последнего товара, с которого следует начать
+                        выборку (например, для постраничного доступа).
+        client_id (str): Идентификатор клиента для аутентификации API.
+        seller_token (str): API-ключ продавца для аутентификации.
+
+    Raises:
+        requests.exceptions.HTTPError: Если запрос завершился неуспешно.
+
+    Example:
+        >>> products = get_product_list("", "your_client_id", "your_seller_token")
+        >>> len(products) > 0
+        True
+
+    Note:
+        Запрос может вернуть не более 1000 товаров за один раз.
+    """
     url = "https://api-seller.ozon.ru/v2/product/list"
     headers = {
         "Client-Id": client_id,
@@ -32,7 +54,29 @@ def get_product_list(last_id, client_id, seller_token):
 
 
 def get_offer_ids(client_id, seller_token):
-    """Получить артикулы товаров магазина озон"""
+    """Получить список артикулов (offer_id) товаров магазина Озон.
+
+    Эта функция выполняет запрос к API Озон для получения всех артикулов товаров
+    в магазине, используя постраничную выборку. Функция продолжает запрашивать
+    товары до тех пор, пока не будут получены все артикулы.
+
+    Args:
+        client_id (str): Идентификатор клиента для аутентификации API.
+        seller_token (str): API-ключ продавца для аутентификации.
+
+    Returns:
+        list: Список артикулов товаров (offer_id). Каждый артикул представлен в виде строки.
+
+    Example:
+        >>> offer_ids = get_offer_ids("your_client_id", "your_seller_token")
+        >>> isinstance(offer_ids, list)
+        True
+        >>> len(offer_ids) > 0
+        True
+
+    Note:
+        Если товаров в магазине нет, возвращаемый список будет пустым.
+    """
     last_id = ""
     product_list = []
     while True:
@@ -49,7 +93,45 @@ def get_offer_ids(client_id, seller_token):
 
 
 def update_price(prices: list, client_id, seller_token):
-    """Обновить цены товаров"""
+    """Обновить цены товаров на Озон.
+
+        Эта функция отправляет запрос к API Озон для обновления цен на указанные товары.
+        Цены должны быть предоставлены в виде списка словарей, где каждый словарь содержит
+        информацию о цене и артикуле товара.
+
+        Args:
+            prices (list): Список цен на товары. Каждый элемент списка должен быть словарем
+                           в формате:
+                           {
+                               "auto_action_enabled": str,  # статус действия
+                               "currency_code": str,        # код валюты, например, "RUB"
+                               "offer_id": str,             # артикул товара
+                               "old_price": str,            # старая цена
+                               "price": str,                # новая цена
+                           }
+            client_id (str): Идентификатор клиента для аутентификации API.
+            seller_token (str): API-ключ продавца для аутентификации.
+
+        Returns:
+            dict: Ответ от API, содержащий информацию об успешности обновления цен.
+
+        Example:
+            >>> prices_to_update = [
+            ...     {
+            ...         "auto_action_enabled": "UNKNOWN",
+            ...         "currency_code": "RUB",
+            ...         "offer_id": "12345",
+            ...         "old_price": "500",
+            ...         "price": "550"
+            ...     }
+            ... ]
+            >>> response = update_price(prices_to_update, "your_client_id", "your_seller_token")
+            >>> response["success"]
+            True
+
+        Note:
+            Если в списке prices не содержится действительных данных, функция может вызвать ошибку.
+        """
     url = "https://api-seller.ozon.ru/v1/product/import/prices"
     headers = {
         "Client-Id": client_id,
@@ -62,7 +144,37 @@ def update_price(prices: list, client_id, seller_token):
 
 
 def update_stocks(stocks: list, client_id, seller_token):
-    """Обновить остатки"""
+    """Обновить остатки товаров на Озон.
+
+       Эта функция отправляет запрос к API Озон для обновления остатков указанных товаров.
+       Остатки должны быть предоставлены в виде списка словарей, где каждый словарь содержит
+       информацию о товаре и его количестве.
+
+       Args:
+           stocks (list): Список остатков товаров. Каждый элемент списка должен быть словарем
+
+       Returns:
+           dict: Ответ от API, содержащий информацию об успешности обновления остатков.
+
+       Example:
+           >>> stocks_to_update = [
+           ...     {
+           ...         "offer_id": "12345",
+           ...         "stock": 50
+           ...     },
+           ...     {
+           ...         "offer_id": "67890",
+           ...         "stock": 0
+           ...     }
+           ... ]
+           >>> response = update_stocks(stocks_to_update, "your_client_id", "your_seller_token")
+           >>> response["success"]
+           True
+
+       Note:
+           Если в списке stocks не содержится действительных данных,
+           функция может вызвать ошибку.
+       """
     url = "https://api-seller.ozon.ru/v1/product/import/stocks"
     headers = {
         "Client-Id": client_id,
@@ -75,8 +187,24 @@ def update_stocks(stocks: list, client_id, seller_token):
 
 
 def download_stock():
-    """Скачать файл ostatki с сайта casio"""
-    # Скачать остатки с сайта
+    """Скачать файл с остатками товаров и вернуть их в виде списка.
+
+       Эта функция загружает ZIP-архив с остатками товаров с заданного URL,
+       распаковывает его и считывает данные об остатках из файла Excel.
+       Возвращает список записей остатков с информацией о каждом товаре.
+
+       Returns:
+           list: Список словарей, где каждый словарь содержит информацию о товаре,
+
+       Example:
+           >>> stock_data = download_stock()
+           >>> len(stock_data) > 0
+           True
+
+       Example of incorrect use:
+           >>> download_stock()
+           # Если файл не доступен, возникнет ошибка HTTPError.
+       """
     casio_url = "https://timeworld.ru/upload/files/ostatki.zip"
     session = requests.Session()
     response = session.get(casio_url)
@@ -96,7 +224,34 @@ def download_stock():
 
 
 def create_stocks(watch_remnants, offer_ids):
-    # Уберем то, что не загружено в seller
+    """Создает список остатков для обновления на основе данных о товарах.
+
+        Эта функция принимает список остатков (watch_remnants) и набор идентификаторов
+        предложений (offer_ids), чтобы сформировать список остатков. Если количество товара
+        больше 10, устанавливается значение 100, если 1, то 0. Для незагруженных идентификаторов
+        предложений добавляется запись с остатком 0.
+
+        Args:
+            watch_remnants (list): Список словарей с информацией о товарах, где каждый словарь
+                                   содержит как минимум "Код" и "Количество".
+
+            offer_ids (list): Список строк с идентификаторами предложений, которые уже загружены
+                              в систему продавцов.
+
+        Returns:
+            list: Список словарей, содержащих пары "offer_id" и "stock", где "offer_id" — это
+                  идентификатор товара, а "stock" — количество.
+
+        Example:
+            >>> watch_remnants = [{"Код": "12345", "Количество": ">10"}, {"Код": "67890", "Количество": "1"}]
+            >>> offer_ids = ["12345", "67890", "11111"]
+            >>> create_stocks(watch_remnants, offer_ids)
+            [{'offer_id': '12345', 'stock': 100}, {'offer_id': '67890', 'stock': 0}, {'offer_id': '11111', 'stock': 0}]
+
+        Example of incorrect use:
+            >>> create_stocks([], ["12345"])
+            []
+        """
     stocks = []
     for watch in watch_remnants:
         if str(watch.get("Код")) in offer_ids:
@@ -116,6 +271,32 @@ def create_stocks(watch_remnants, offer_ids):
 
 
 def create_prices(watch_remnants, offer_ids):
+    """Создает список цен на товары для обновления.
+
+    Эта функция формирует список цен для товаров на основе переданных данных об остатках
+    (watch_remnants) и идентификаторов товаров (offer_ids). Для каждого остатка добавляется
+    информация о цене и других атрибутах.
+
+    Args:
+        watch_remnants (list): Список словарей, содержащих информацию о товарах, где каждый
+                               словарь должен содержать как минимум "Код" и "Цена".
+
+        offer_ids (list): Список строк с идентификаторами предложений, для которых необходимо
+                          установить цены.
+
+    Returns:
+        list: Список словарей, содержащих данные о ценах для обновления. Каждый словарь
+              имеет структуру:
+
+    Example:
+        >>> create_prices(watch_remnants, offer_ids)
+        [{'auto_action_enabled': 'UNKNOWN', 'currency_code': 'RUB', 'offer_id': '12345', 'old_price': '0', 'price': '5990'},
+         {'auto_action_enabled': 'UNKNOWN', 'currency_code': 'RUB', 'offer_id': '67890', 'old_price': '0', 'price': '1250'}]
+
+    Example of incorrect use:
+        >>> create_prices([], ["12345"])
+        []
+    """
     prices = []
     for watch in watch_remnants:
         if str(watch.get("Код")) in offer_ids:
@@ -155,7 +336,27 @@ def price_conversion(price: str) -> str:
 
 
 def divide(lst: list, n: int):
-    """Разделить список lst на части по n элементов"""
+    """Разделяет список на части заданного размера.
+
+    Эта функция принимает список и делит его на подсписки, каждый из которых содержит не более
+    чем n элементов. Если длина списка не делится на n, последний подсписок может содержать
+    меньше элементов.
+
+    Args:
+        lst (list): Список, который необходимо разделить.
+        n (int): Максимальное количество элементов в каждом подсписке.
+
+    Yields:
+        list: Подсписки, содержащие элементы из исходного списка.
+
+    Example:
+        >>> list(divide([1, 2, 3, 4, 5], 2))
+        [[1, 2], [3, 4], [5]]
+
+    Example of incorrect use:
+        >>> list(divide([], 2))
+        []
+    """
     for i in range(0, len(lst), n):
         yield lst[i : i + n]
 
